@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Toll Registration</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #f5c400;
+  --gold-dim: rgba(245,196,0,0.15);
+  --cyan: #00e5ff;
+  --cyan-dim: rgba(0,229,255,0.12);
+  --red: #ff3b3b;
+  --green: #00e676;
+  --bg-deep: #03060f;
+  --bg-mid: #060d1f;
+  --panel: rgba(5,15,40,0.85);
+  --border: rgba(0,229,255,0.25);
+  --text: #e8f0fe;
+  --text-muted: rgba(232,240,254,0.5);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ════════════════════════════
+   ANIMATED HIGHWAY BACKGROUND
+   ════════════════════════════ */
+#highway-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ══════════════════
+   FLOATING HUD GRID
+   ══════════════════ */
+.hud-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridShift 8s linear infinite;
+}
+@keyframes gridShift {
+  from { background-position: 0 0; }
+  to   { background-position: 0 60px; }
+}
+
+/* vignette */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(3,6,15,0.85) 100%);
+}
+
+/* ══════════════════════════
+   TOP NAV / ACTION BUTTONS
+   ══════════════════════════ */
+.top-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+  background: linear-gradient(to bottom, rgba(3,6,15,0.95), transparent);
+  border-bottom: 1px solid rgba(0,229,255,0.1);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-icon {
+  width: 36px; height: 36px;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 12px rgba(245,196,0,0.4);
+  animation: iconPulse 3s ease-in-out infinite;
+}
+@keyframes iconPulse {
+  0%,100% { box-shadow: 0 0 10px rgba(245,196,0,0.4); }
+  50%     { box-shadow: 0 0 22px rgba(245,196,0,0.7), 0 0 40px rgba(245,196,0,0.2); }
+}
+.brand-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 3px;
+  text-shadow: 0 0 12px rgba(245,196,0,0.5);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-hud {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0,229,255,0.07);
+  color: var(--cyan);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+.btn-hud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,229,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.btn-hud:hover::before { opacity: 1; }
+.btn-hud:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 16px rgba(0,229,255,0.3), inset 0 0 12px rgba(0,229,255,0.08);
+  transform: translateY(-1px);
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border: 1px solid rgba(255,59,59,0.4);
+  border-radius: 6px;
+  background: rgba(255,59,59,0.07);
+  color: var(--red);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.btn-logout:hover {
+  border-color: var(--red);
+  box-shadow: 0 0 16px rgba(255,59,59,0.3);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════
+   HERO HEADING SECTION
+   ══════════════════════ */
+.hero {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 110px 20px 20px;
+}
+
+.hero-eyebrow {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 6px;
+  color: var(--cyan);
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fadeSlideDown 0.8s ease 0.2s forwards;
+}
+
+.hero-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 14px 0 10px;
+  opacity: 0;
+  animation: fadeSlideDown 0.8s ease 0.4s forwards;
+}
+.hero-title span.gold {
+  color: var(--gold);
+  text-shadow: 0 0 30px rgba(245,196,0,0.6), 0 0 60px rgba(245,196,0,0.2);
+}
+.hero-title span.cyan {
+  color: var(--cyan);
+  text-shadow: 0 0 30px rgba(0,229,255,0.5);
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  opacity: 0;
+  animation: fadeSlideDown 0.8s ease 0.6s forwards;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity:0; transform:translateY(-18px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ══════════════════════════
+   STATUS BAR (animated)
+   ══════════════════════════ */
+.status-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 10px 20px 24px;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeIn 1s ease 1s forwards;
+}
+@keyframes fadeIn { to { opacity:1; } }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 20px;
+  background: rgba(0,229,255,0.04);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+.status-dot.gold { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.status-dot.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+@keyframes dotPulse {
+  0%,100% { transform: scale(1); opacity:1; }
+  50%     { transform: scale(1.4); opacity:0.6; }
+}
+
+/* ══════════════════════
+   MAIN LAYOUT
+   ══════════════════════ */
+.main-layout {
+  position: relative;
+  z-index: 10;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ══════════════════════
+   REGISTRATION FORM CARD
+   ══════════════════════ */
+.form-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  animation: cardReveal 0.9s cubic-bezier(.34,1.56,.64,1) 0.8s forwards;
+}
+@keyframes cardReveal {
+  from { opacity:0; transform: translateY(40px) scale(0.97); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+/* corner accents */
+.form-card::before,
+.form-card::after {
+  content: '';
+  position: absolute;
+  width: 40px; height: 40px;
+  border-color: var(--gold);
+  border-style: solid;
+}
+.form-card::before {
+  top: 12px; left: 12px;
+  border-width: 2px 0 0 2px;
+  border-radius: 4px 0 0 0;
+}
+.form-card::after {
+  bottom: 12px; right: 12px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 4px 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(0,229,255,0.1);
+}
+.card-icon {
+  width: 44px; height: 44px;
+  background: var(--gold-dim);
+  border: 1px solid rgba(245,196,0,0.35);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.card-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-shadow: 0 0 16px rgba(245,196,0,0.4);
+}
+.card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+/* FORM FIELDS */
+.field-group {
+  margin-bottom: 18px;
+}
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+.field-label .lnum {
+  font-family: 'Orbitron', monospace;
+  font-size: 10px;
+  color: rgba(0,229,255,0.4);
+}
+
+.field-input {
+  position: relative;
+}
+.field-input input {
+  width: 100%;
+  padding: 13px 18px 13px 44px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  outline: none;
+  transition: all 0.3s;
+}
+.field-input input::placeholder { color: rgba(232,240,254,0.25); }
+.field-input input:focus {
+  border-color: var(--cyan);
+  background: rgba(0,229,255,0.05);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.1), 0 0 20px rgba(0,229,255,0.1);
+}
+.field-input input[readonly] {
+  border-color: rgba(245,196,0,0.3);
+  color: var(--gold);
+  background: rgba(245,196,0,0.04);
+}
+.field-icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 17px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* scan line animation on focus */
+.field-input::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  border-radius: 0 0 8px 8px;
+  transform: scaleX(0);
+  transition: transform 0.4s ease;
+}
+.field-input:focus-within::after { transform: scaleX(1); }
+
+/* AMOUNT DISPLAY */
+.amount-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(245,196,0,0.06);
+  border: 1px solid rgba(245,196,0,0.25);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+.amount-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.amount-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 0 16px rgba(245,196,0,0.5);
+}
+.amount-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* REGISTER BUTTON */
+.btn-register {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f5c400 0%, #e0a800 100%);
+  color: #03060f;
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  box-shadow: 0 4px 20px rgba(245,196,0,0.35);
+}
+.btn-register::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  transition: left 0.5s;
+}
+.btn-register:hover::before { left: 120%; }
+.btn-register:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(245,196,0,0.55);
+}
+.btn-register:active { transform: scale(0.98); }
+
+#responseMessage {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--green);
+  min-height: 20px;
+  text-shadow: 0 0 10px rgba(0,230,118,0.5);
+}
+
+/* BALANCE BUTTON */
+.btn-balance {
+  width: 100%;
+  padding: 13px;
+  margin-top: 10px;
+  border: 1px solid rgba(0,230,118,0.35);
+  border-radius: 10px;
+  background: rgba(0,230,118,0.06);
+  color: var(--green);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.btn-balance:hover {
+  border-color: var(--green);
+  background: rgba(0,230,118,0.1);
+  box-shadow: 0 0 20px rgba(0,230,118,0.25);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════
+   RIGHT SIDE PANEL
+   ══════════════════════════════ */
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  animation: cardReveal 0.9s cubic-bezier(.34,1.56,.64,1) 1s forwards;
+}
+
+/* VEHICLE ILLUSTRATION CARD */
+.car-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(20px);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.car-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: scanLine 3s ease-in-out infinite;
+}
+@keyframes scanLine {
+  0%,100% { opacity:0.3; }
+  50%     { opacity:1; }
+}
+
+.car-svg-wrap {
+  position: relative;
+  display: inline-block;
+  margin: 8px 0 14px;
+}
+
+/* SCAN BEAM over car */
+.scan-beam {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(0,229,255,0.9), transparent);
+  box-shadow: 0 0 12px rgba(0,229,255,0.6);
+  animation: scanBeam 2.5s ease-in-out infinite;
+  top: 0;
+}
+@keyframes scanBeam {
+  0%   { top: 0%;   opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.car-label {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.car-sublabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+/* SCAN DATA LINES */
+.scan-data {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.1);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.data-key {
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.data-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  color: var(--cyan);
+}
+
+/* INFO CARD */
+.info-card {
+  background: var(--panel);
+  border: 1px solid rgba(245,196,0,0.2);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(20px);
+}
+.info-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-title::before {
+  content: '';
+  width: 20px; height: 2px;
+  background: var(--gold);
+  border-radius: 2px;
+}
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.info-bullet {
+  color: var(--gold);
+  font-size: 16px;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+/* ══════════════════
+   DETECT BUTTONS ACTION CARDS
+   ══════════════════ */
+.detect-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.detect-btn {
+  padding: 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  line-height: 1.4;
+}
+.detect-btn .detect-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+.detect-btn:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(0,229,255,0.25);
+  transform: translateY(-2px);
+}
+
+/* ══════════════════════
+   RESPONSIVE
+   ══════════════════════ */
+@media (max-width: 700px) {
+  .main-layout { grid-template-columns: 1fr; }
+  .side-panel { order: -1; }
+  .hero-title { font-size: 28px; }
+  .detect-cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- animated highway background -->
+<canvas id="highway-canvas"></canvas>
+<div class="hud-grid"></div>
+<div class="vignette"></div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="brand">
+    <div class="brand-icon">🛣️</div>
+    <div class="brand-name">TollSync</div>
+  </div>
+  <div class="top-actions">
+    <button class="btn-hud" onclick="detectNumberPlate()">
+      <span>📷</span> Detect Plate
+    </button>
+    <button class="btn-hud" onclick="detectVehicle()">
+      <span>🚗</span> Detect Vehicle
+    </button>
+    <a href="/logout" class="btn-logout">⏻ Logout</a>
+  </div>
+</div>
+
+<!-- HERO HEADING -->
+<div class="hero">
+  <div class="hero-eyebrow">Automated Toll Management System</div>
+  <h1 class="hero-title">
+    <span class="gold">VEHICLE</span>&nbsp;<span class="cyan">TOLL</span><br>REGISTRATION
+  </h1>
+  <p class="hero-sub">Secure · Fast · Automated</p>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-pill"><div class="status-dot"></div> System Online</div>
+  <div class="status-pill"><div class="status-dot gold"></div> Toll Gate Active</div>
+  <div class="status-pill"><div class="status-dot cyan"></div> Camera Ready</div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+  <!-- LEFT: FORM -->
+  <div class="form-card">
+    <div class="card-header">
+      <div class="card-icon">🚘</div>
+      <div>
+        <div class="card-title">Register Vehicle</div>
+        <div class="card-subtitle">Enter vehicle details to issue toll pass</div>
+      </div>
+    </div>
+
+    <!-- detect buttons inside form too -->
+    <div class="detect-cards">
+      <button class="detect-btn" onclick="detectNumberPlate()">
+        <span class="detect-icon">📷</span> Detect Number Plate
+      </button>
+      <button class="detect-btn" onclick="detectVehicle()">
+        <span class="detect-icon">🚗</span> Detect Vehicle
+      </button>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label"><span class="lnum">01</span> Owner Name</div>
+      <div class="field-input">
+        <span class="field-icon">👤</span>
+        <input type="text" id="name" placeholder="Full name of vehicle owner">
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label"><span class="lnum">02</span> Address</div>
+      <div class="field-input">
+        <span class="field-icon">📍</span>
+        <input type="text" id="address" placeholder="Residential address">
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label"><span class="lnum">03</span> Vehicle Number</div>
+      <div class="field-input">
+        <span class="field-icon">🔖</span>
+        <input type="text" id="vehicle_number" placeholder="e.g. TN 01 AB 1234" style="text-transform:uppercase; letter-spacing:2px;">
+      </div>
+    </div>
+
+    <div class="amount-display">
+      <div>
+        <div class="amount-label">Toll Registration Fee</div>
+        <div class="amount-tag">One-time payment</div>
+      </div>
+      <div>
+        <div class="amount-value">₹500</div>
+        <input type="hidden" id="amount" value="500">
+      </div>
+    </div>
+
+    <button class="btn-register" onclick="registerVehicle()">
+      ⚡ Register &amp; Pay
+    </button>
+
+    <p id="responseMessage"></p>
+
+    <button class="btn-balance" onclick="window.location.href='/check_balance'">
+      💳 Check Balance
+    </button>
+  </div>
+
+  <!-- RIGHT: SIDE PANEL -->
+  <div class="side-panel">
+
+    <!-- Car visual + scan animation -->
+    <div class="car-card">
+      <div class="car-label">Vehicle Scanner</div>
+      <div class="car-sublabel">Plate recognition active</div>
+      <div class="car-svg-wrap">
+        <!-- SVG Car top-view -->
+        <svg width="200" height="120" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- car shadow -->
+          <ellipse cx="100" cy="112" rx="70" ry="8" fill="rgba(0,229,255,0.08)"/>
+          <!-- car body -->
+          <rect x="30" y="30" width="140" height="72" rx="18" fill="#0d1b3e" stroke="rgba(0,229,255,0.5)" stroke-width="1.5"/>
+          <!-- roof/cabin -->
+          <rect x="55" y="38" width="90" height="44" rx="10" fill="#101f3f" stroke="rgba(0,229,255,0.3)" stroke-width="1"/>
+          <!-- windshield front -->
+          <rect x="60" y="40" width="80" height="18" rx="6" fill="rgba(0,229,255,0.12)" stroke="rgba(0,229,255,0.4)" stroke-width="1"/>
+          <!-- windshield rear -->
+          <rect x="60" y="74" width="80" height="14" rx="5" fill="rgba(0,229,255,0.08)" stroke="rgba(0,229,255,0.25)" stroke-width="0.8"/>
+          <!-- front headlights -->
+          <rect x="32" y="35" width="22" height="10" rx="4" fill="rgba(255,220,80,0.7)" stroke="rgba(245,196,0,0.6)" stroke-width="1"/>
+          <rect x="146" y="35" width="22" height="10" rx="4" fill="rgba(255,220,80,0.7)" stroke="rgba(245,196,0,0.6)" stroke-width="1"/>
+          <!-- rear lights -->
+          <rect x="32" y="87" width="22" height="10" rx="4" fill="rgba(255,50,50,0.7)" stroke="rgba(255,60,60,0.5)" stroke-width="1"/>
+          <rect x="146" y="87" width="22" height="10" rx="4" fill="rgba(255,50,50,0.7)" stroke="rgba(255,60,60,0.5)" stroke-width="1"/>
+          <!-- wheels -->
+          <circle cx="52" cy="42" r="12" fill="#060d1f" stroke="rgba(0,229,255,0.4)" stroke-width="1.5"/>
+          <circle cx="52" cy="42" r="6" fill="#0d1b3e" stroke="rgba(0,229,255,0.3)" stroke-width="1"/>
+          <circle cx="148" cy="42" r="12" fill="#060d1f" stroke="rgba(0,229,255,0.4)" stroke-width="1.5"/>
+          <circle cx="148" cy="42" r="6" fill="#0d1b3e" stroke="rgba(0,229,255,0.3)" stroke-width="1"/>
+          <circle cx="52" cy="90" r="12" fill="#060d1f" stroke="rgba(0,229,255,0.4)" stroke-width="1.5"/>
+          <circle cx="52" cy="90" r="6" fill="#0d1b3e" stroke="rgba(0,229,255,0.3)" stroke-width="1"/>
+          <circle cx="148" cy="90" r="12" fill="#060d1f" stroke="rgba(0,229,255,0.4)" stroke-width="1.5"/>
+          <circle cx="148" cy="90" r="6" fill="#0d1b3e" stroke="rgba(0,229,255,0.3)" stroke-width="1"/>
+          <!-- license plate -->
+          <rect x="74" y="99" width="52" height="14" rx="3" fill="#f5c400" stroke="#e0a800" stroke-width="1"/>
+          <text x="100" y="110" text-anchor="middle" font-family="Orbitron,monospace" font-size="7" font-weight="700" fill="#03060f">TN 01 AB</text>
+          <!-- glow dots on body -->
+          <circle cx="100" cy="60" r="3" fill="rgba(0,229,255,0.5)"/>
+          <circle cx="85" cy="60" r="2" fill="rgba(0,229,255,0.3)"/>
+          <circle cx="115" cy="60" r="2" fill="rgba(0,229,255,0.3)"/>
+        </svg>
+        <div class="scan-beam"></div>
+      </div>
+
+      <div class="scan-data">
+        <div class="data-row">
+          <span class="data-key">Status</span>
+          <span class="data-val" style="color:var(--green)">● SCANNING</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">Gate</span>
+          <span class="data-val">TOLL-04</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">Lane</span>
+          <span class="data-val">LANE-B</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">Fee</span>
+          <span class="data-val" style="color:var(--gold)">₹ 500</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFO CARD -->
+    <div class="info-card">
+      <div class="info-title">How It Works</div>
+      <div class="info-item"><span class="info-bullet">①</span> Enter owner name, address &amp; vehicle number</div>
+      <div class="info-item"><span class="info-bullet">②</span> Use camera detection for automatic plate reading</div>
+      <div class="info-item"><span class="info-bullet">③</span> Pay ₹500 registration fee once to activate toll pass</div>
+      <div class="info-item"><span class="info-bullet">④</span> Check balance anytime via the balance portal</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- THREE.JS + HIGHWAY ANIMATION -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ── HIGHWAY CANVAS ── */
+const canvas = document.getElementById('highway-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize(){
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* Road lines */
+const lines = [];
+for(let i = 0; i < 30; i++){
+  lines.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    speed: 2 + Math.random() * 5,
+    len: 40 + Math.random() * 80,
+    alpha: 0.1 + Math.random() * 0.3,
+    width: 1 + Math.random() * 1.5
+  });
+}
+
+/* Moving cars (simple rectangles) */
+const cars = [];
+for(let i = 0; i < 8; i++){
+  cars.push({
+    x: Math.random() * W,
+    y: H * 0.2 + Math.random() * H * 0.7,
+    speed: 1.5 + Math.random() * 3.5,
+    w: 28 + Math.random() * 20,
+    h: 14 + Math.random() * 8,
+    color: Math.random() > 0.5 ? 'rgba(0,229,255,' : 'rgba(245,196,0,',
+    alpha: 0.15 + Math.random() * 0.25
+  });
+}
+
+/* Road lane guides */
+function drawRoad(){
+  const vanishX = W * 0.5;
+  const vanishY = H * 0.42;
+
+  /* sky-to-road gradient */
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   '#03060f');
+  grad.addColorStop(0.4, '#060d1f');
+  grad.addColorStop(1,   '#040810');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  /* horizon glow */
+  const hGrad = ctx.createRadialGradient(vanishX, vanishY, 0, vanishX, vanishY, W * 0.6);
+  hGrad.addColorStop(0,   'rgba(0,229,255,0.07)');
+  hGrad.addColorStop(0.4, 'rgba(0,229,255,0.02)');
+  hGrad.addColorStop(1,   'transparent');
+  ctx.fillStyle = hGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  /* perspective road lanes */
+  const laneCount = 5;
+  for(let i = 0; i <= laneCount; i++){
+    const t = i / laneCount;
+    const bx = W * 0.1 + t * W * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(vanishX, vanishY);
+    ctx.lineTo(bx, H);
+    ctx.strokeStyle = `rgba(0,229,255,${0.04 + t * 0.02})`;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  /* road surface */
+  const roadGrad = ctx.createLinearGradient(0, vanishY, 0, H);
+  roadGrad.addColorStop(0, 'rgba(6,13,31,0)');
+  roadGrad.addColorStop(1, 'rgba(6,13,31,0.7)');
+  ctx.fillStyle = roadGrad;
+  ctx.beginPath();
+  ctx.moveTo(vanishX, vanishY);
+  ctx.lineTo(W, H); ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  /* dashed center lines */
+  for(let j = 0; j < 3; j++){
+    const dashAlpha = 0.12 - j * 0.03;
+    for(let k = 0; k < 6; k++){
+      const yFrac = 0.1 + k * 0.15;
+      const y = vanishY + yFrac * (H - vanishY);
+      const prevY = vanishY + (yFrac - 0.08) * (H - vanishY);
+      const xOff = (j - 1) * W * 0.12 * yFrac;
+      ctx.beginPath();
+      ctx.moveTo(vanishX + xOff * 0.5, prevY);
+      ctx.lineTo(vanishX + xOff, y);
+      ctx.strokeStyle = `rgba(245,196,0,${dashAlpha})`;
+      ctx.lineWidth = 1 + yFrac * 2;
+      ctx.stroke();
+    }
+  }
+}
+
+let frame = 0;
+function animateBg(){
+  requestAnimationFrame(animateBg);
+  frame++;
+
+  drawRoad();
+
+  /* moving speed lines */
+  lines.forEach(l => {
+    l.y += l.speed;
+    if(l.y > H){ l.y = -l.len; l.x = Math.random() * W; }
+    ctx.beginPath();
+    ctx.moveTo(l.x, l.y);
+    ctx.lineTo(l.x, l.y + l.len);
+    ctx.strokeStyle = `rgba(0,229,255,${l.alpha})`;
+    ctx.lineWidth = l.width;
+    ctx.stroke();
+  });
+
+  /* moving car silhouettes */
+  cars.forEach(c => {
+    c.x -= c.speed;
+    if(c.x < -c.w){ c.x = W + c.w; c.y = H * 0.3 + Math.random() * H * 0.6; }
+    ctx.save();
+    ctx.fillStyle = c.color + c.alpha + ')';
+    /* car body */
+    ctx.beginPath();
+    ctx.roundRect(c.x, c.y, c.w, c.h, 3);
+    ctx.fill();
+    /* headlights */
+    ctx.fillStyle = `rgba(245,196,0,${c.alpha * 1.5})`;
+    ctx.beginPath();
+    ctx.roundRect(c.x, c.y + c.h*0.2, 4, c.h*0.3, 1);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(c.x, c.y + c.h*0.55, 4, c.h*0.3, 1);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+animateBg();
+
+/* ── FORM LOGIC ── */
+function registerVehicle(){
+  const name = document.getElementById("name").value;
+  const address = document.getElementById("address").value;
+  const vehicle_number = document.getElementById("vehicle_number").value;
+  const amount = document.getElementById("amount").value;
+
+  if(!name || !address || !vehicle_number){
+    const msg = document.getElementById("responseMessage");
+    msg.style.color = '#ff3b3b';
+    msg.innerText = '⚠ Please fill all required fields.';
+    return;
+  }
+
+  fetch('/register', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, address, vehicle_number, amount: parseInt(amount)})
+  })
+  .then(res => res.json())
+  .then(data => {
+    const msg = document.getElementById("responseMessage");
+    msg.style.color = '#00e676';
+    msg.innerText = '✅ ' + data.message;
+  })
+  .catch(()=>{
+    document.getElementById("responseMessage").innerText = '⚠ Network error';
+  });
+}
+
+function detectNumberPlate(){
+
+  // Open Streamlit in new tab
+  window.open("http://localhost:8501", "_blank");
+
+  // Start Streamlit backend
+  fetch("/detect")
+  .then(res => res.json())
+  .then(data => {
+
+    console.log(data);
+
+    if(data.error){
+      alert("❌ " + data.error);
+    }
+
+  })
+  .catch(()=>{
+    alert("❌ Server error");
+  });
+
+}
+function detectVehicle(){
+  fetch('/detect_vehicle', {method:'POST'})
+  .then(res => res.json())
+  .then(data => {
+    if(data.status === "success") alert("✅ Vehicle Detection Started");
+    else alert("❌ " + (data.error || "Unknown error"));
+  })
+  .catch(()=>alert("❌ Request failed"));
+}
+</script>
+
+</body>
+</html>

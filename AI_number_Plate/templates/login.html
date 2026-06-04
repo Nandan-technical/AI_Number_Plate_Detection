@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANPR — Secure Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #00f5ff;
+            --neon-dim: rgba(0,245,255,0.15);
+            --neon-glow: rgba(0,245,255,0.6);
+            --plate-yellow: #f5c518;
+            --dark: #050a0e;
+            --text: #c8e6f0;
+            --danger: #ff3b5c;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #roadCanvas {
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+        }
+
+        .scanlines {
+            position: fixed; inset: 0; z-index: 1; pointer-events: none;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent 0px, transparent 3px,
+                rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px
+            );
+        }
+
+        .scan-beam {
+            position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, transparent, var(--neon), transparent);
+            z-index: 2; pointer-events: none;
+            animation: scanBeam 6s ease-in-out infinite;
+            box-shadow: 0 0 20px var(--neon-glow);
+        }
+        @keyframes scanBeam {
+            0%,100% { top: 0%; opacity: 0; }
+            10%     { opacity: 1; }
+            90%     { opacity: 1; }
+            50%     { top: 100%; }
+        }
+
+        .wrapper {
+            position: relative; z-index: 10;
+            display: flex; flex-direction: column; align-items: center;
+            animation: wrapperIn 0.9s cubic-bezier(.22,1,.36,1) both 0.2s;
+        }
+        @keyframes wrapperIn {
+            from { opacity: 0; transform: translateY(40px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .plate-header {
+            background: var(--plate-yellow);
+            color: #111;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.4rem;
+            letter-spacing: 0.3em;
+            padding: 8px 28px;
+            border-radius: 6px 6px 0 0;
+            border: 3px solid #222;
+            border-bottom: none;
+            text-transform: uppercase;
+            position: relative;
+            animation: platePulse 3s ease-in-out infinite;
+        }
+        .plate-header::before, .plate-header::after {
+            content: '●'; position: absolute;
+            top: 50%; transform: translateY(-50%);
+            font-size: 0.55rem; color: #555;
+        }
+        .plate-header::before { left: 8px; }
+        .plate-header::after  { right: 8px; }
+        @keyframes platePulse {
+            0%,100% { box-shadow: 0 -6px 30px rgba(245,197,24,0.4); }
+            50%     { box-shadow: 0 -6px 55px rgba(245,197,24,0.8); }
+        }
+
+        .card {
+            background: linear-gradient(160deg, rgba(8,18,28,0.96) 0%, rgba(3,8,12,0.98) 100%);
+            border: 1px solid rgba(0,245,255,0.22);
+            border-top: 2px solid var(--neon);
+            border-radius: 0 0 12px 12px;
+            padding: 34px 40px 38px;
+            width: 380px;
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                0 0 0 1px rgba(0,245,255,0.07),
+                0 30px 90px rgba(0,0,0,0.8),
+                inset 0 1px 0 rgba(0,245,255,0.1);
+        }
+        .card::before, .card::after {
+            content: ''; position: absolute;
+            width: 18px; height: 18px;
+            border-color: var(--neon); border-style: solid; opacity: 0.5;
+        }
+        .card::before { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+        .card::after  { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+        .card-glow {
+            position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+            width: 220px; height: 220px;
+            background: radial-gradient(circle, rgba(0,245,255,0.09) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .logo-area { text-align: center; margin-bottom: 26px; }
+        .logo-icon {
+            width: 58px; height: 58px; margin: 0 auto 10px;
+            border: 2px solid var(--neon); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.7rem; position: relative;
+            animation: iconSpin 0.6s cubic-bezier(.22,1,.36,1) both 0.4s;
+            box-shadow: 0 0 22px var(--neon-glow), inset 0 0 14px var(--neon-dim);
+        }
+        @keyframes iconSpin {
+            from { opacity: 0; transform: scale(0.4) rotate(-90deg); }
+            to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .logo-icon::after {
+            content: ''; position: absolute; inset: -7px;
+            border-radius: 50%; border: 1px solid rgba(0,245,255,0.18);
+            animation: ringPulse 2.2s ease-in-out infinite;
+        }
+        @keyframes ringPulse {
+            0%,100% { transform: scale(1); opacity: 0.4; }
+            50%     { transform: scale(1.18); opacity: 0.1; }
+        }
+        .title {
+            font-size: 1.55rem; font-weight: 700;
+            color: #fff; letter-spacing: 0.12em; text-transform: uppercase;
+        }
+        .subtitle {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.68rem; color: var(--neon);
+            letter-spacing: 0.22em; text-transform: uppercase;
+            margin-top: 3px; opacity: 0.8;
+        }
+        .typed-cursor {
+            display: inline-block; width: 1px; height: 0.75em;
+            background: var(--neon); margin-left: 2px; vertical-align: middle;
+            animation: blink 0.9s step-end infinite;
+        }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .field { position: relative; margin-bottom: 18px;
+            animation: fieldIn 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .field:nth-child(1) { animation-delay: 0.55s; }
+        .field:nth-child(2) { animation-delay: 0.65s; }
+        @keyframes fieldIn {
+            from { opacity: 0; transform: translateX(-18px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .field label {
+            display: block; font-family: 'Share Tech Mono', monospace;
+            font-size: 0.64rem; letter-spacing: 0.2em;
+            color: var(--neon); text-transform: uppercase;
+            margin-bottom: 6px; opacity: 0.75;
+        }
+        .field-inner { position: relative; display: flex; align-items: center; }
+        .field-icon {
+            position: absolute; left: 14px;
+            color: rgba(0,245,255,0.45); font-size: 1rem;
+            pointer-events: none; transition: color 0.3s; z-index: 2;
+        }
+        .field input {
+            width: 100%; background: rgba(0,245,255,0.04);
+            border: 1px solid rgba(0,245,255,0.18);
+            border-radius: 6px; color: #e0f7fa;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.93rem;
+            padding: 12px 14px 12px 44px;
+            outline: none; caret-color: var(--neon);
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+        }
+        .field input::placeholder { color: rgba(200,230,240,0.28); letter-spacing: 0.05em; }
+        .field input:focus {
+            border-color: var(--neon); background: rgba(0,245,255,0.08);
+            box-shadow: 0 0 0 3px rgba(0,245,255,0.1), 0 0 18px rgba(0,245,255,0.07);
+        }
+        .field-inner:focus-within .field-icon { color: var(--neon); }
+        .eye-btn {
+            position: absolute; right: 12px;
+            background: none; border: none;
+            color: rgba(0,245,255,0.4); cursor: pointer;
+            font-size: 1rem; padding: 4px; transition: color 0.3s; z-index: 2;
+        }
+        .eye-btn:hover { color: var(--neon); }
+
+        .options-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 22px;
+            animation: fieldIn 0.5s cubic-bezier(.22,1,.36,1) both 0.72s;
+        }
+        .remember {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.82rem; color: var(--text); cursor: pointer; user-select: none;
+        }
+        .remember input[type=checkbox] { display: none; }
+        .checkbox-custom {
+            width: 16px; height: 16px;
+            border: 1px solid rgba(0,245,255,0.35); border-radius: 3px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.25s; flex-shrink: 0;
+        }
+        .remember input:checked ~ .checkbox-custom {
+            background: var(--neon); border-color: var(--neon);
+            box-shadow: 0 0 8px var(--neon-glow);
+        }
+        .remember input:checked ~ .checkbox-custom::after {
+            content: '✓'; font-size: 0.65rem; color: #000; font-weight: 900;
+        }
+        .forgot-link {
+            font-size: 0.8rem; color: rgba(0,245,255,0.6);
+            text-decoration: none; letter-spacing: 0.05em; transition: color 0.3s;
+        }
+        .forgot-link:hover { color: var(--neon); }
+
+        .btn-login {
+            width: 100%; padding: 13px;
+            background: transparent; border: 1.5px solid var(--neon);
+            border-radius: 6px; color: var(--neon);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem; font-weight: 700;
+            letter-spacing: 0.25em; text-transform: uppercase;
+            cursor: pointer; position: relative; overflow: hidden;
+            transition: color 0.3s, box-shadow 0.3s;
+            animation: fieldIn 0.5s cubic-bezier(.22,1,.36,1) both 0.8s;
+        }
+        .btn-login::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--neon);
+            transform: translateX(-101%);
+            transition: transform 0.4s cubic-bezier(.22,1,.36,1); z-index: 0;
+        }
+        .btn-login:hover::before { transform: translateX(0); }
+        .btn-login:hover { color: #000; box-shadow: 0 0 32px var(--neon-glow); }
+        .btn-login span { position: relative; z-index: 1; }
+        .btn-login.loading .btn-text { display: none; }
+        .btn-login.loading::after {
+            content: ''; display: inline-block;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(0,245,255,0.3);
+            border-top-color: var(--neon); border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            position: relative; z-index: 1;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .status-bar {
+            margin-top: 20px; border-top: 1px solid rgba(0,245,255,0.1);
+            padding-top: 15px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.67rem; color: rgba(0,245,255,0.45); letter-spacing: 0.12em;
+            animation: fieldIn 0.5s cubic-bezier(.22,1,.36,1) both 0.95s;
+        }
+        .status-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #00ff88; box-shadow: 0 0 6px #00ff88;
+            animation: dotBlink 2s ease-in-out infinite;
+        }
+        @keyframes dotBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .register-row {
+            margin-top: 16px; text-align: center;
+            font-size: 0.84rem; color: rgba(200,230,240,0.45);
+            animation: fieldIn 0.5s cubic-bezier(.22,1,.36,1) both 1s;
+        }
+        .register-row a {
+            color: var(--neon); text-decoration: none; font-weight: 600;
+            letter-spacing: 0.05em; position: relative;
+        }
+        .register-row a::after {
+            content: ''; position: absolute; left: 0; bottom: -1px;
+            width: 0; height: 1px; background: var(--neon); transition: width 0.3s;
+        }
+        .register-row a:hover::after { width: 100%; }
+
+        .flash {
+            position: absolute; top: -44px; left: 0; right: 0;
+            background: var(--danger); color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.74rem; letter-spacing: 0.08em;
+            padding: 10px 16px; border-radius: 6px; text-align: center;
+            opacity: 0; transform: translateY(8px);
+            transition: opacity 0.3s, transform 0.3s; pointer-events: none;
+        }
+        .flash.show { opacity: 1; transform: translateY(0); }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            20%     { transform: translateX(-8px); }
+            40%     { transform: translateX(8px); }
+            60%     { transform: translateX(-5px); }
+            80%     { transform: translateX(5px); }
+        }
+        .card.shake { animation: shake 0.45s ease; }
+    </style>
+</head>
+<body>
+
+<canvas id="roadCanvas"></canvas>
+<div class="scanlines"></div>
+<div class="scan-beam"></div>
+
+<div class="wrapper">
+    <div class="plate-header" id="plateText">IND &middot; ANPR &middot; 2025</div>
+    <div class="card" id="loginCard">
+        <div class="card-glow"></div>
+        <div class="flash" id="flashMsg"></div>
+        <div class="logo-area">
+            <div class="logo-icon">&#128247;</div>
+            <div class="title">ANPR Access</div>
+            <div class="subtitle"><span id="typedSub"></span><span class="typed-cursor"></span></div>
+        </div>
+        <form id="loginForm" action="{{ url_for('login') }}" method="POST" novalidate>
+            <div class="field">
+                <label>Operator ID</label>
+                <div class="field-inner">
+                    <span class="field-icon">&#128100;</span>
+                    <input type="text" name="username" id="username" placeholder="Enter operator ID" autocomplete="username" required>
+                </div>
+            </div>
+            <div class="field">
+                <label>Access Code</label>
+                <div class="field-inner">
+                    <span class="field-icon">&#128272;</span>
+                    <input type="password" name="password" id="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" required>
+                    <button type="button" class="eye-btn" id="eyeBtn">&#128065;</button>
+                </div>
+            </div>
+            <div class="options-row">
+                <label class="remember">
+                    <input type="checkbox" name="remember">
+                    <span class="checkbox-custom"></span>
+                    Keep me authorized
+                </label>
+                <a href="#" class="forgot-link">Reset credentials</a>
+            </div>
+            <button type="submit" class="btn-login" id="loginBtn">
+                <span class="btn-text">&#10230; &nbsp;AUTHENTICATE</span>
+            </button>
+        </form>
+        <div class="status-bar">
+            <div class="status-dot"></div>
+            <span id="statusText">SYSTEM SECURE &mdash; AES-256 ENCRYPTED</span>
+        </div>
+        <div class="register-row">
+            Not enrolled? <a href="{{ url_for('register_user') }}">Request access</a>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   HIGHWAY CANVAS SCENE
+═══════════════════════════════════════════════ */
+const canvas = document.getElementById('roadCanvas');
+const ctx    = canvas.getContext('2d');
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+const W = () => canvas.width;
+const H = () => canvas.height;
+
+/* Vanishing point — upper center */
+const VPX = () => W() * 0.5;
+const VPY = () => H() * 0.36;
+
+/* Road edges at a given y */
+function roadEdges(y) {
+    const t = (y - VPY()) / (H() - VPY()); // 0=horizon 1=bottom
+    const halfW = t * W() * 0.54;
+    return { left: VPX() - halfW, right: VPX() + halfW };
+}
+
+/* ── Stars ── */
+const stars = Array.from({length: 130}, () => ({
+    x: Math.random(), y: Math.random(),
+    r: Math.random() * 1.3 + 0.2,
+    a: 0.3 + Math.random() * 0.7,
+    phase: Math.random() * Math.PI * 2
+}));
+
+function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, VPY());
+    g.addColorStop(0, '#010810');
+    g.addColorStop(0.5, '#041020');
+    g.addColorStop(1,   '#08182e');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W(), VPY() + 4);
+}
+
+function drawStars(t) {
+    const vy = VPY();
+    stars.forEach(s => {
+        const flick = 0.65 + 0.35 * Math.sin(t * 0.0013 + s.phase);
+        ctx.globalAlpha = s.a * flick;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(s.x * W(), s.y * vy * 0.95, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+}
+
+/* ── Skyline ── */
+const buildingDefs = [
+    {x:.01,w:.045,h:.18},{x:.06,w:.03,h:.10},{x:.10,w:.05,h:.22},
+    {x:.16,w:.03,h:.12},{x:.20,w:.06,h:.26},{x:.27,w:.025,h:.09},
+    {x:.30,w:.04,h:.18},{x:.35,w:.03,h:.14},{x:.39,w:.025,h:.08},
+    {x:.57,w:.03,h:.12},{x:.61,w:.055,h:.22},{x:.68,w:.03,h:.11},
+    {x:.72,w:.05,h:.19},{x:.78,w:.04,h:.14},{x:.83,w:.035,h:.10},
+    {x:.87,w:.055,h:.21},{x:.93,w:.04,h:.13},{x:.97,w:.025,h:.09}
+];
+
+/* Pre-randomise window states (static after build) */
+const windowStates = buildingDefs.map(b => {
+    const cols = Math.max(1, Math.floor(b.w * W() / 7));
+    const rows = 20;
+    return Array.from({length: rows * cols}, () => Math.random() > 0.45);
+});
+
+function drawSkyline() {
+    const vy = VPY();
+    buildingDefs.forEach((b, bi) => {
+        const bx = b.x * W(), bw = b.w * W();
+        const bh = b.h * vy;
+        const by = vy - bh;
+
+        // Body
+        ctx.fillStyle = '#070f18';
+        ctx.fillRect(bx, by, bw, bh + 4);
+
+        // Windows
+        const cols = Math.max(1, Math.floor(bw / 7));
+        const rows = Math.max(1, Math.floor(bh / 9));
+        const ws   = windowStates[bi];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (ws[r * cols + c]) {
+                    ctx.globalAlpha = 0.45 + Math.random() * 0.4;
+                    ctx.fillStyle = Math.random() > 0.1 ? 'rgba(255,220,100,1)' : 'rgba(180,220,255,1)';
+                    ctx.fillRect(bx + c * (bw / cols) + 1.5, by + r * 9 + 2, 3.5, 4.5);
+                }
+            }
+        }
+        ctx.globalAlpha = 1;
+    });
+}
+
+/* ── Road ── */
+let dashOffset = 0;
+
+function drawRoad() {
+    const vpx = VPX(), vpy = VPY();
+    const { left: bl, right: br } = roadEdges(H());
+
+    /* Asphalt */
+    const ag = ctx.createLinearGradient(vpx, vpy, vpx, H());
+    ag.addColorStop(0,   '#0a0f14');
+    ag.addColorStop(0.4, '#111820');
+    ag.addColorStop(1,   '#161f2a');
+    ctx.fillStyle = ag;
+    ctx.beginPath();
+    ctx.moveTo(vpx, vpy); ctx.lineTo(br, H()); ctx.lineTo(bl, H());
+    ctx.closePath(); ctx.fill();
+
+    /* Horizon glow */
+    const hg = ctx.createRadialGradient(vpx, vpy, 0, vpx, vpy, W() * 0.55);
+    hg.addColorStop(0, 'rgba(0,100,160,0.28)');
+    hg.addColorStop(0.5,'rgba(0,50,100,0.1)');
+    hg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(0, 0, W(), vpy + H() * 0.12);
+
+    /* Road edges */
+    const edgePairs = [[vpx, vpy, bl, H()], [vpx, vpy, br, H()]];
+    edgePairs.forEach(([x1,y1,x2,y2]) => {
+        const eg = ctx.createLinearGradient(x1,y1,x2,y2);
+        eg.addColorStop(0,  'rgba(255,255,255,0)');
+        eg.addColorStop(0.4,'rgba(255,255,255,0.55)');
+        eg.addColorStop(1,  'rgba(255,255,255,0.2)');
+        ctx.strokeStyle = eg; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    });
+
+    /* Center double-yellow divider */
+    [-3.5, 3.5].forEach(off => {
+        const cg = ctx.createLinearGradient(vpx,vpy,vpx,H());
+        cg.addColorStop(0,  'rgba(220,170,0,0)');
+        cg.addColorStop(0.3,'rgba(220,170,0,0.8)');
+        cg.addColorStop(1,  'rgba(220,170,0,0.4)');
+        ctx.strokeStyle = cg; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(vpx + off, vpy); ctx.lineTo(vpx + off * 3, H()); ctx.stroke();
+    });
+
+    /* Animated dashed lane lines — 2 lanes each side */
+    for (let side = -1; side <= 1; side += 2) {
+        for (let li = 1; li <= 2; li++) {
+            const frac = li / 3;
+            for (let seg = 0; seg < 22; seg++) {
+                const t0 = ((seg / 22) + dashOffset) % 1;
+                const t1 = Math.min(((seg + 0.42) / 22 + dashOffset) % 1, 1);
+                if (t0 >= t1) continue;
+                const y0 = vpy + t0 * (H() - vpy);
+                const y1 = vpy + t1 * (H() - vpy);
+                const { left:l0, right:r0 } = roadEdges(y0);
+                const { left:l1, right:r1 } = roadEdges(y1);
+                const hw0 = (r0 - l0) / 2, hw1 = (r1 - l1) / 2;
+                const x0 = vpx + side * hw0 * frac;
+                const x1v = vpx + side * hw1 * frac;
+                ctx.strokeStyle = `rgba(255,255,255,${0.18 + t0 * 0.45})`;
+                ctx.lineWidth = 1.5 + t0 * 2.5;
+                ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1v,y1); ctx.stroke();
+            }
+        }
+    }
+
+    /* Wet-road neon reflection */
+    const wr = ctx.createLinearGradient(vpx - 50, vpy, vpx + 50, H());
+    wr.addColorStop(0,   'rgba(0,245,255,0)');
+    wr.addColorStop(0.45,'rgba(0,245,255,0.06)');
+    wr.addColorStop(0.5, 'rgba(0,245,255,0.09)');
+    wr.addColorStop(0.55,'rgba(0,245,255,0.06)');
+    wr.addColorStop(1,   'rgba(0,245,255,0)');
+    ctx.fillStyle = wr;
+    ctx.beginPath();
+    ctx.moveTo(vpx,vpy); ctx.lineTo(br,H()); ctx.lineTo(bl,H()); ctx.closePath(); ctx.fill();
+}
+
+/* ═══ CAR CLASS ═══ */
+const FRONT_COLORS = ['#ffffff','#fff5cc','#ffeaa0'];
+const BACK_COLORS  = ['#ff2200','#ff3800','#cc1100'];
+
+class Car {
+    constructor(laneIndex, totalLanes, side) {
+        // side: 'near' = coming toward viewer (right half), 'far' = going away (left half)
+        this.laneIndex  = laneIndex;
+        this.totalLanes = totalLanes;
+        this.side       = side;
+        this.reset(true);
+    }
+
+    reset(init = false) {
+        this.progress = init ? Math.random() : (this.side === 'near' ? 0.02 : 0.98);
+        this.speed = 0.0016 + Math.random() * 0.0028;
+        this.frontColor = FRONT_COLORS[Math.floor(Math.random() * FRONT_COLORS.length)];
+        this.backColor  = BACK_COLORS [Math.floor(Math.random() * BACK_COLORS.length)];
+        this.bodyTint   = `hsl(${200+Math.random()*50},18%,${9+Math.random()*10}%)`;
+    }
+
+    update() {
+        if (this.side === 'near') {
+            this.progress += this.speed;
+            if (this.progress > 1.05) this.reset();
+        } else {
+            this.progress -= this.speed * 0.65;
+            if (this.progress < -0.02) this.reset();
+        }
+    }
+
+    draw() {
+        const vpx = VPX(), vpy = VPY();
+        const y = vpy + this.progress * (H() - vpy);
+        if (y < vpy || y > H() + 20) return;
+
+        const { left, right } = roadEdges(y);
+        const roadW = right - left;
+        const laneW = roadW / 2 / this.totalLanes; // half road per side
+
+        // X position
+        let x;
+        if (this.side === 'near') {
+            // right half (oncoming lanes)
+            x = vpx + laneW * (this.laneIndex + 0.5);
+        } else {
+            // left half (going-away lanes)
+            x = vpx - laneW * (this.laneIndex + 0.5);
+        }
+
+        const t    = this.progress;
+        const carW = Math.max(4, t * 88);
+        const carH = Math.max(2, t * 38);
+        if (carW < 3) return;
+
+        ctx.save();
+
+        /* Body */
+        ctx.fillStyle = this.bodyTint;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(x - carW / 2, y - carH, carW, carH, carW * 0.1);
+        } else {
+            ctx.rect(x - carW/2, y - carH, carW, carH);
+        }
+        ctx.fill();
+
+        /* Cabin highlight */
+        ctx.fillStyle = 'rgba(0,80,120,0.4)';
+        ctx.fillRect(x - carW*0.28, y - carH*0.95, carW*0.56, carH*0.5);
+
+        if (this.side === 'near') {
+            /* === HEADLIGHTS (toward viewer) === */
+            const hs = Math.max(2, t * 7);
+
+            [-0.3, 0.3].forEach(off => {
+                const lx = x + carW * off, ly = y;
+                /* Beam cone on road */
+                if (t > 0.25) {
+                    const bLen = t * 200;
+                    const bg = ctx.createLinearGradient(lx, ly, lx, ly + bLen);
+                    bg.addColorStop(0, 'rgba(255,245,180,0.28)');
+                    bg.addColorStop(1, 'rgba(255,245,180,0)');
+                    ctx.fillStyle = bg;
+                    ctx.beginPath();
+                    ctx.moveTo(lx - carW*0.1, ly);
+                    ctx.lineTo(lx + carW*0.1, ly);
+                    ctx.lineTo(lx + carW*0.45, ly + bLen);
+                    ctx.lineTo(lx - carW*0.45, ly + bLen);
+                    ctx.closePath(); ctx.fill();
+                }
+                /* Glow halo */
+                const rg = ctx.createRadialGradient(lx, ly, 0, lx, ly, hs * 6);
+                rg.addColorStop(0, this.frontColor + 'ee');
+                rg.addColorStop(1, this.frontColor + '00');
+                ctx.fillStyle = rg;
+                ctx.beginPath(); ctx.arc(lx, ly, hs * 6, 0, Math.PI*2); ctx.fill();
+                /* Bright dot */
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(lx, ly, hs, 0, Math.PI*2); ctx.fill();
+            });
+
+        } else {
+            /* === TAILLIGHTS (going away) === */
+            const ts = Math.max(1.5, t * 5);
+
+            [-0.3, 0.3].forEach(off => {
+                const lx = x + carW * off, ly = y - carH * 0.18;
+                const rg = ctx.createRadialGradient(lx, ly, 0, lx, ly, ts * 5);
+                rg.addColorStop(0, this.backColor + 'ff');
+                rg.addColorStop(1, this.backColor + '00');
+                ctx.fillStyle = rg;
+                ctx.beginPath(); ctx.arc(lx, ly, ts * 5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ff5500';
+                ctx.beginPath(); ctx.arc(lx, ly, ts, 0, Math.PI*2); ctx.fill();
+            });
+
+            /* Brake light streak */
+            if (t > 0.15) {
+                const sg = ctx.createLinearGradient(x, y - carH*0.18, x, y - carH*0.18 - t*60);
+                sg.addColorStop(0, 'rgba(255,30,0,0.2)');
+                sg.addColorStop(1, 'rgba(255,30,0,0)');
+                ctx.fillStyle = sg;
+                ctx.fillRect(x - carW*0.35, y - carH*0.18 - t*60, carW*0.7, t*60);
+            }
+        }
+
+        ctx.restore();
+    }
+}
+
+/* Build car pool */
+const LANES = 2;
+const cars  = [];
+/* Near (right half) — 3 cars per lane */
+for (let l = 0; l < LANES; l++) {
+    for (let n = 0; n < 3; n++) cars.push(new Car(l, LANES, 'near'));
+}
+/* Far (left half) — 2 cars per lane */
+for (let l = 0; l < LANES; l++) {
+    for (let n = 0; n < 2; n++) cars.push(new Car(l, LANES, 'far'));
+}
+
+/* ── Render loop ── */
+let raf = 0;
+function loop(t) {
+    ctx.clearRect(0, 0, W(), H());
+
+    drawSky();
+    drawStars(t);
+    drawSkyline();
+    drawRoad();
+
+    dashOffset = (dashOffset + 0.011) % 1;
+
+    /* Sort: draw smaller (farther) cars first */
+    const sorted = [...cars].sort((a,b) => a.progress - b.progress);
+    sorted.forEach(c => { c.update(); c.draw(); });
+
+    /* Vignette */
+    const vg = ctx.createRadialGradient(W()/2, H()/2, H()*0.2, W()/2, H()/2, H()*0.85);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = vg; ctx.fillRect(0,0,W(),H());
+
+    raf = requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ═══════════════════════════════════════════════
+   UI
+═══════════════════════════════════════════════ */
+/* Typing subtitle */
+const subtitleEl   = document.getElementById('typedSub');
+const subtitleText = 'Automatic Number Plate Recognition';
+let ti = 0;
+(function typeChar() {
+    if (ti < subtitleText.length) {
+        subtitleEl.textContent += subtitleText[ti++];
+        setTimeout(typeChar, 55 + Math.random() * 40);
+    }
+})();
+
+/* Plate scramble */
+const plateEl    = document.getElementById('plateText');
+const ALPHANUM   = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+const origPlate  = 'IND · ANPR · 2025';
+function scramblePlate() {
+    let count = 0;
+    const iv = setInterval(() => {
+        plateEl.textContent = origPlate.split('').map((c, i) => {
+            if (c === ' ' || c === '·') return c;
+            return count > i ? origPlate[i] : ALPHANUM[Math.floor(Math.random()*ALPHANUM.length)];
+        }).join('');
+        if (++count > origPlate.length + 3) { plateEl.textContent = origPlate; clearInterval(iv); }
+    }, 50);
+}
+setInterval(scramblePlate, 6000);
+
+/* Status ticker */
+const tickers = [
+    'SYSTEM SECURE — AES-256 ENCRYPTED',
+    'CAMERAS ONLINE — 12 ACTIVE FEEDS',
+    'DATABASE SYNC — 99.8% UPTIME',
+    'AI ENGINE — READY',
+    'VEHICLES DETECTED — 5 IN FRAME'
+];
+const statusEl = document.getElementById('statusText');
+let si = 0;
+setInterval(() => {
+    si = (si + 1) % tickers.length;
+    statusEl.style.transition = 'opacity 0.3s';
+    statusEl.style.opacity = '0';
+    setTimeout(() => { statusEl.textContent = tickers[si]; statusEl.style.opacity = '1'; }, 320);
+}, 4000);
+
+/* Password toggle */
+const pwInput = document.getElementById('password');
+const eyeBtn  = document.getElementById('eyeBtn');
+eyeBtn.addEventListener('click', () => {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    eyeBtn.textContent = show ? '\uD83D\uDE48' : '\uD83D\uDC41';
+});
+
+/* Form validation */
+const form  = document.getElementById('loginForm');
+const btn   = document.getElementById('loginBtn');
+const card  = document.getElementById('loginCard');
+const flash = document.getElementById('flashMsg');
+
+function showFlash(msg) {
+    flash.textContent = msg;
+    flash.classList.add('show');
+    card.classList.remove('shake');
+    void card.offsetWidth; // reflow to restart
+    card.classList.add('shake');
+    setTimeout(() => { flash.classList.remove('show'); card.classList.remove('shake'); }, 3000);
+}
+
+form.addEventListener('submit', e => {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    if (!u || !p) { e.preventDefault(); showFlash('\u26A0 All credentials are required'); return; }
+    if (p.length < 4) { e.preventDefault(); showFlash('\u26A0 Access code too short'); return; }
+    btn.classList.add('loading');
+    setTimeout(() => btn.classList.remove('loading'), 5000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --off-bg: #0d0f14;
+  --on-bg: #1a1f2e;
+  --lamp-off: #2a2d35;
+  --lamp-on: #4caf50;
+  --lamp-on-light: #81c784;
+  --lamp-on-dark: #388e3c;
+  --glow: #4caf50;
+  --cord: #888;
+  --stem: #9e9e9e;
+  --base: #bdbdbd;
+  --form-bg: rgba(255,255,255,0.05);
+  --border-on: rgba(76,175,80,0.5);
+  --text: #f0f0f0;
+  --text-muted: #aaa;
+  --input-bg: rgba(255,255,255,0.07);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--off-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background 1s ease;
+  position: relative;
+}
+
+body.lights-on {
+  background: var(--on-bg);
+}
+
+/* ── ROOM LIGHT CONE ── */
+#light-cone {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1s ease;
+  background: radial-gradient(ellipse 60% 70% at 28% 38%, rgba(76,175,80,0.13) 0%, transparent 70%);
+}
+body.lights-on #light-cone { opacity: 1; }
+
+/* ── STAGE ── */
+#stage {
+  position: relative;
+  width: 700px;
+  max-width: 98vw;
+  height: 420px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  z-index: 2;
+}
+
+/* ── LAMP WRAPPER ── */
+#lamp-wrap {
+  position: absolute;
+  left: 40px;
+  bottom: 0;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+  user-select: none;
+}
+
+/* SHADE */
+#shade {
+  position: relative;
+  width: 140px;
+  height: 100px;
+  background: var(--lamp-off);
+  clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+  border-radius: 0 0 12px 12px;
+  transition: background 0.6s ease, filter 0.6s ease;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+body.lights-on #shade {
+  background: var(--lamp-on);
+  filter: drop-shadow(0 0 18px rgba(76,175,80,0.8)) drop-shadow(0 0 40px rgba(76,175,80,0.4));
+}
+
+/* SHADE BOTTOM GLOW (light beam) */
+#shade::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 60px;
+  background: radial-gradient(ellipse at top, rgba(76,175,80,0.45), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  pointer-events: none;
+}
+body.lights-on #shade::after { opacity: 1; }
+
+/* FACE on shade */
+#face {
+  position: absolute;
+  top: 36px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+/* EYES */
+.eye {
+  width: 18px;
+  height: 18px;
+  position: relative;
+}
+
+/* sleeping eye (curved line) */
+.eye-closed {
+  width: 18px;
+  height: 10px;
+  border-bottom: 3px solid var(--text-muted);
+  border-radius: 0 0 10px 10px;
+  transition: all 0.3s ease;
+}
+
+/* open happy eye */
+.eye-open {
+  width: 18px;
+  height: 18px;
+  background: #1a1a1a;
+  border-radius: 50%;
+  border: 2px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s ease 0.3s;
+}
+.eye-open::after {
+  content: '';
+  width: 7px; height: 7px;
+  background: white;
+  border-radius: 50%;
+  position: relative;
+  top: -2px; left: 2px;
+}
+
+body.lights-on .eye-closed { opacity:0; transform:scale(0); }
+body.lights-on .eye-open { opacity:1; transform:scale(1); }
+
+/* MOUTH */
+#mouth {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.mouth-line {
+  width: 22px; height: 3px;
+  background: var(--text-muted);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+.mouth-smile {
+  width: 28px; height: 14px;
+  border-bottom: 3px solid #1a1a1a;
+  border-radius: 0 0 20px 20px;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s ease 0.4s;
+}
+/* tongue */
+.mouth-smile::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 8px;
+  width: 12px; height: 8px;
+  background: #e53935;
+  border-radius: 0 0 8px 8px;
+}
+body.lights-on .mouth-line { opacity:0; transform:scale(0); }
+body.lights-on .mouth-smile { opacity:1; transform:scale(1); }
+
+/* STEM */
+#stem {
+  width: 10px;
+  height: 120px;
+  background: linear-gradient(to right, #bbb, #888, #bbb);
+  border-radius: 5px;
+  z-index: 2;
+  transition: background 0.6s;
+}
+body.lights-on #stem {
+  background: linear-gradient(to right, #ddd, #aaa, #ddd);
+  box-shadow: 0 0 8px rgba(76,175,80,0.3);
+}
+
+/* BASE */
+#base {
+  width: 100px; height: 18px;
+  background: linear-gradient(to bottom, #aaa, #777);
+  border-radius: 50%;
+  z-index: 2;
+  transition: all 0.6s;
+}
+body.lights-on #base {
+  background: linear-gradient(to bottom, #ccc, #999);
+  box-shadow: 0 0 12px rgba(76,175,80,0.4);
+}
+
+/* ── CORD ── */
+#cord-wrap {
+  position: absolute;
+  left: 126px;
+  top: 160px;
+  z-index: 10;
+}
+
+#cord-svg {
+  overflow: visible;
+  cursor: grab;
+}
+#cord-svg:active { cursor: grabbing; }
+
+#cord-line {
+  stroke: var(--cord);
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke 0.4s;
+}
+body.lights-on #cord-line { stroke: #aaa; }
+
+#cord-pull {
+  fill: #888;
+  transition: fill 0.4s;
+  cursor: grab;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+body.lights-on #cord-pull { fill: #aaa; }
+
+/* pull animation */
+#cord-wrap.pulling #cord-pull {
+  animation: cordBounce 0.4s ease-out;
+}
+@keyframes cordBounce {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(28px); }
+  60%  { transform: translateY(-6px); }
+  80%  { transform: translateY(8px); }
+  100% { transform: translateY(0); }
+}
+
+/* hint text */
+#pull-hint {
+  position: absolute;
+  top: 68px;
+  left: -38px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: hintBob 2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes hintBob {
+  0%,100% { transform: translateY(0); opacity:0.7; }
+  50% { transform: translateY(4px); opacity:1; }
+}
+body.lights-on #pull-hint { display: none; }
+
+/* arrow pointing to cord */
+#pull-hint::before {
+  content: '→ ';
+  color: #4caf50;
+}
+
+/* ── FORM PANEL ── */
+#form-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(30px) scale(0.95);
+  transition: opacity 0.8s ease 0.3s, transform 0.8s cubic-bezier(.34,1.56,.64,1) 0.3s;
+  pointer-events: none;
+}
+
+body.lights-on #form-panel {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.form-card {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid var(--border-on);
+  border-radius: 20px;
+  padding: 32px 28px;
+  box-shadow:
+    0 0 30px rgba(76,175,80,0.15),
+    0 0 80px rgba(76,175,80,0.08),
+    inset 0 0 20px rgba(76,175,80,0.05);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* top glow line */
+.form-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--glow), transparent);
+  border-radius: 2px;
+}
+
+.form-title {
+  text-align: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(76,175,80,0.6);
+}
+.form-subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-bottom: 22px;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+.field label {
+  display: block;
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field input {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--input-bg);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.field input::placeholder { color: #555; }
+.field input:focus {
+  border-color: var(--glow);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
+}
+
+.btn-register {
+  width: 100%;
+  padding: 14px;
+  margin-top: 6px;
+  background: var(--lamp-on);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.3s;
+  box-shadow: 0 4px 20px rgba(76,175,80,0.4);
+}
+.btn-register::before {
+  content: '';
+  position: absolute;
+  top:0; left:-100%; width:100%; height:100%;
+  background: rgba(255,255,255,0.2);
+  transform: skewX(-20deg);
+  transition: left 0.5s;
+}
+.btn-register:hover::before { left: 120%; }
+.btn-register:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 28px rgba(76,175,80,0.6);
+}
+.btn-register:active { transform: scale(0.98); }
+
+.form-footer {
+  text-align: center;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.form-footer a {
+  color: var(--lamp-on-light);
+  text-decoration: none;
+  font-weight: 700;
+  transition: text-shadow 0.3s;
+}
+.form-footer a:hover { text-shadow: 0 0 8px var(--glow); }
+
+/* ── FLOOR / TABLE ── */
+#floor {
+  width: 700px;
+  max-width: 98vw;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  border-radius: 2px;
+  z-index: 2;
+  position: relative;
+  transition: background 0.8s;
+}
+body.lights-on #floor {
+  background: linear-gradient(90deg, transparent, rgba(76,175,80,0.25), transparent);
+  box-shadow: 0 0 20px rgba(76,175,80,0.2);
+}
+
+/* ── STARS (dark mode decor) ── */
+.stars {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%,100% { opacity:0.2; }
+  50% { opacity:0.8; }
+}
+
+/* ── BULB FLASH on pull ── */
+#bulb-flash {
+  position: fixed; inset: 0;
+  background: rgba(76,175,80,0.08);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+}
+#bulb-flash.flash {
+  animation: flashAnim 0.6s ease-out forwards;
+}
+@keyframes flashAnim {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── SMALL BULB inside shade ── */
+#bulb {
+  position: absolute;
+  bottom: -6px;
+  left: 50%; transform: translateX(-50%);
+  width: 22px; height: 22px;
+  background: #444;
+  border-radius: 50% 50% 40% 40%;
+  border: 2px solid #555;
+  z-index: 5;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+body.lights-on #bulb {
+  background: #fffde7;
+  box-shadow: 0 0 12px 4px rgba(255,255,180,0.8);
+}
+
+/* ── CHEEKS (blush) ── */
+.cheek {
+  position: absolute;
+  bottom: 22px;
+  width: 18px; height: 10px;
+  border-radius: 50%;
+  background: rgba(229,57,53,0.6);
+  opacity: 0;
+  transition: opacity 0.4s ease 0.5s;
+}
+.cheek-l { left: 16px; }
+.cheek-r { right: 16px; }
+body.lights-on .cheek { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- room flash -->
+<div id="bulb-flash"></div>
+<div id="light-cone"></div>
+
+<!-- decorative stars -->
+<div class="stars" id="stars"></div>
+
+<!-- main stage -->
+<div id="stage">
+
+  <!-- LAMP -->
+  <div id="lamp-wrap">
+    <!-- shade with face -->
+    <div id="shade">
+      <!-- bulb -->
+      <div id="bulb"></div>
+
+      <!-- FACE -->
+      <div id="face">
+        <!-- left eye -->
+        <div class="eye">
+          <div class="eye-closed"></div>
+          <div class="eye-open"></div>
+        </div>
+        <!-- right eye -->
+        <div class="eye">
+          <div class="eye-closed"></div>
+          <div class="eye-open"></div>
+        </div>
+      </div>
+
+      <!-- mouth -->
+      <div id="mouth">
+        <div class="mouth-line"></div>
+        <div class="mouth-smile"></div>
+      </div>
+
+      <!-- blush cheeks -->
+      <div class="cheek cheek-l"></div>
+      <div class="cheek cheek-r"></div>
+    </div>
+
+    <!-- stem -->
+    <div id="stem"></div>
+    <!-- base -->
+    <div id="base"></div>
+  </div>
+
+  <!-- CORD -->
+  <div id="cord-wrap">
+    <svg id="cord-svg" width="60" height="80" viewBox="0 0 60 80">
+      <!-- wavy cord path -->
+      <path id="cord-line"
+        d="M 30 0 C 20 12, 40 24, 30 36 C 20 48, 38 55, 30 60"/>
+      <!-- pull ring -->
+      <circle id="cord-pull" cx="30" cy="65" r="8"/>
+      <circle cx="30" cy="65" r="4" fill="#555"/>
+    </svg>
+    <div id="pull-hint">Pull cord</div>
+  </div>
+
+  <!-- REGISTER FORM -->
+  <div id="form-panel">
+    <div class="form-card">
+      <div class="form-title">REGISTER</div>
+      <div class="form-subtitle">Create your account</div>
+
+      <form action="" method="POST">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" name="username" placeholder="Enter username" required>
+        </div>
+        <div class="field">
+          <label>Address</label>
+          <input type="text" name="address" placeholder="Enter address" required>
+        </div>
+        <div class="field">
+          <label>Mobile Number</label>
+          <input type="text" name="mobile_no" placeholder="Enter mobile number" required>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-register">CREATE ACCOUNT</button>
+      </form>
+
+      <div class="form-footer">
+        <a href="{{ url_for('login') }}">Login here</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- floor line -->
+<div id="floor"></div>
+
+<script>
+/* ── generate stars ── */
+const starsEl = document.getElementById('stars');
+for(let i = 0; i < 80; i++){
+  const s = document.createElement('div');
+  s.className = 'star';
+  s.style.left = Math.random() * 100 + '%';
+  s.style.top  = Math.random() * 100 + '%';
+  s.style.animationDelay = Math.random() * 3 + 's';
+  s.style.animationDuration = (2 + Math.random() * 3) + 's';
+  s.style.width = s.style.height = (Math.random() > 0.7 ? 3 : 2) + 'px';
+  starsEl.appendChild(s);
+}
+
+/* ── cord interaction ── */
+const cordWrap  = document.getElementById('cord-wrap');
+const cordPull  = document.getElementById('cord-pull');
+const cordLine  = document.getElementById('cord-line');
+const flash     = document.getElementById('bulb-flash');
+let   pulled    = false;
+
+function pullCord(){
+  if(pulled) return;
+
+  /* bouncy cord animation */
+  cordWrap.classList.remove('pulling');
+  void cordWrap.offsetWidth; /* reflow */
+  cordWrap.classList.add('pulling');
+
+  /* flash the room */
+  flash.classList.remove('flash');
+  void flash.offsetWidth;
+  flash.classList.add('flash');
+
+  /* lights on! */
+  setTimeout(() => {
+    document.body.classList.add('lights-on');
+    pulled = true;
+  }, 180);
+
+  /* wiggle lamp shade */
+  const shade = document.getElementById('shade');
+  shade.style.transition = 'background 0.6s, filter 0.6s, transform 0.1s';
+  shade.style.transform = 'rotate(-4deg)';
+  setTimeout(()=>{ shade.style.transform = 'rotate(3deg)'; }, 120);
+  setTimeout(()=>{ shade.style.transform = 'rotate(-2deg)'; }, 240);
+  setTimeout(()=>{ shade.style.transform = 'rotate(0deg)'; }, 360);
+}
+
+/* click or drag */
+cordPull.addEventListener('click', pullCord);
+cordWrap.addEventListener('click', pullCord);
+
+/* drag down to pull */
+let dragStart = null;
+cordPull.addEventListener('mousedown', e => { dragStart = e.clientY; });
+cordPull.addEventListener('touchstart', e => { dragStart = e.touches[0].clientY; }, {passive:true});
+
+window.addEventListener('mouseup', e => {
+  if(dragStart !== null && e.clientY - dragStart > 20) pullCord();
+  dragStart = null;
+});
+window.addEventListener('touchend', e => {
+  if(dragStart !== null){
+    const dy = e.changedTouches[0].clientY - dragStart;
+    if(dy > 20) pullCord();
+  }
+  dragStart = null;
+});
+
+/* ── lamp wobble on hover ── */
+const lampWrap = document.getElementById('lamp-wrap');
+lampWrap.addEventListener('mouseenter', ()=>{
+  if(!pulled){
+    const shade = document.getElementById('shade');
+    shade.style.transform = 'rotate(-3deg)';
+    setTimeout(()=>{ shade.style.transform = 'rotate(0deg)'; }, 300);
+  }
+});
+</script>
+
+</body>
+</html>

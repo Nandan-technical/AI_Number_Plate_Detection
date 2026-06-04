@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Details</title>
+</head>
+<body>
+    <h2>Welcome, {{ user }}</h2>
+    <a href="/logout">Logout</a>
+
+    <h2>Your Registered Vehicles</h2>
+    <table border="1">
+        <tr>
+            <th>Vehicle Number</th>
+            <th>Address</th>
+            <th>Amount Paid</th>
+            <th>Status</th>
+            <th>Registered At</th>
+        </tr>
+        {% for vehicle in vehicles %}
+        <tr>
+            <td>{{ vehicle[3] }}</td>
+            <td>{{ vehicle[2] }}</td>
+            <td>₹{{ vehicle[4] }}</td>
+            <td>{{ vehicle[5] }}</td>
+            <td>{{ vehicle[6] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/">Go Back</a>
+</body>
+</html>

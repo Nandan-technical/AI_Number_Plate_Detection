@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recharge Balance</title>
+
+    <style>
+
+        body{
+            background:black;
+            color:white;
+            font-family:Arial;
+            text-align:center;
+            padding-top:100px;
+        }
+
+        input{
+            width:300px;
+            padding:12px;
+            margin:10px;
+            border:none;
+            border-radius:5px;
+        }
+
+        button{
+            padding:12px 20px;
+            background:gold;
+            border:none;
+            border-radius:5px;
+            font-weight:bold;
+            cursor:pointer;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h1>💰 Recharge Toll Balance</h1>
+
+    <input
+        type="text"
+        id="vehicle_number"
+        placeholder="Enter Vehicle Number"
+    >
+
+    <br>
+
+    <input
+        type="number"
+        id="amount"
+        placeholder="Enter Recharge Amount"
+    >
+
+    <br>
+
+    <button onclick="rechargeBalance()">
+        Recharge Now
+    </button>
+
+    <h2 id="result"></h2>
+
+<script>
+
+function rechargeBalance(){
+
+    const vehicle_number =
+        document.getElementById(
+            "vehicle_number"
+        ).value;
+
+    const amount =
+        document.getElementById(
+            "amount"
+        ).value;
+
+    fetch('/recharge_balance',{
+
+        method:'POST',
+
+        headers:{
+            'Content-Type':'application/json'
+        },
+
+        body:JSON.stringify({
+
+            vehicle_number:vehicle_number,
+            amount:amount
+
+        })
+
+    })
+
+    .then(res => res.json())
+
+    .then(data => {
+
+        if(data.status === "success"){
+
+            document.getElementById(
+                "result"
+            ).innerHTML =
+            "✅ Recharge Successful<br>New Balance: ₹" +
+            data.new_balance;
+
+        }
+
+        else{
+
+            document.getElementById(
+                "result"
+            ).innerHTML =
+            "❌ " + data.message;
+
+        }
+
+    });
+
+}
+
+</script>
+
+</body>
+</html>
