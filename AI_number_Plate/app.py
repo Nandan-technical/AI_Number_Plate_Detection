@@ -10,19 +10,32 @@ import webbrowser
 import sys
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
+app.secret_key = os.getenv(
+    "SECRET_KEY",
+    "fallback_secret_key"
+)
 
 # =====================================================
 # DATABASE CONNECTION
 # =====================================================
 def get_db_connection():
 
-    return psycopg2.connect(
-        host="localhost",
-        database="number_plate",
-        user="postgres",
-        password="Nandan@123"
-    )
+    try:
+
+        return psycopg2.connect(
+            host="localhost",
+            database="number_plate",
+            user="postgres",
+            password="Nandan@123"
+        )
+
+    except Exception as e:
+
+        print("Database Connection Error:", e)
+
+        return None
+conn = get_db_connection()
+cursor = conn.cursor()        
 
 # =====================================================
 # HOME PAGE
@@ -156,10 +169,11 @@ def register_vehicle():
     address = data.get("address")
 
     vehicle_number = data.get(
-        "vehicle_number"
+    "vehicle_number",
+    ""
     ).upper().strip()
-
-    amount = float(data.get("amount"))
+    amount = float(data.get("amount", 0)
+)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -225,7 +239,8 @@ def check_balance_api():
     data = request.get_json()
 
     vehicle_number = data.get(
-        "vehicle_number"
+    "vehicle_number",
+    ""
     ).upper().strip()
 
     conn = get_db_connection()
@@ -273,7 +288,8 @@ def recharge_balance():
         data = request.get_json()
 
         vehicle_number = data.get(
-            "vehicle_number"
+        "vehicle_number",
+        ""
         ).upper().strip()
 
         recharge_amount = float(
